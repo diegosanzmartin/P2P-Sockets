@@ -1,15 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import signal, select, socket, json, sys, os                                #Funciones orientadas a conexión, sistema
-from time import time                                                       #Cronometrar tiempos
+import signal, select, socket, json, sys, os, re                                #Funciones orientadas a conexión, sistema
+from time import time                                                           #Cronometrar tiempos
 from time import sleep
 
 ERR = "\033[93m"
 END = "\033[0m"
 
+expIPv4 = "((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)"
+expPort = "(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[0-5]?([0-9]){0,3}[0-9])"
+
 if __name__ == "__main__":
-    if len(sys.argv) != 2 :                                                 #Esta función compara los tiempos para
+    if len(sys.argv) != 2 :                                                     #Esta función compara los tiempos para
         print(ERR + "ERR: Nº de argumentos no válidos" + END)
         sys.exit()
 
@@ -18,12 +21,14 @@ if __name__ == "__main__":
     servPort = int(sys.argv[1])
     serv_addr = (servIP, servPort)
 
-    if servPort < 1023:                                                     #Comprobamos el nº de puerto
+    if servPort < 1023:                                                         #Comprobamos el nº de puerto
         print(ERR + "ERR: El nº de puerto debe ser mayor que 1023" + END)
         sys.exit()
 
     #Creación del socket TCP
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    sock.setblocking(0)                                                         #Establecemos modo no bloqueo
+
 
     #Conexión socket
     sock.bind(serv_addr)
@@ -32,9 +37,8 @@ if __name__ == "__main__":
     inputs = [sock]                                                             #Lista de sockets de lectura
     outputs = []                                                                #Lista de sockets de escritura
 
-    clientes = {}
-    clientes["peers"] = []
-    nCli = 1
+    cliServ = {}
+    cliServ["clientes"] = []
 
     while True:
         try:
@@ -49,32 +53,38 @@ if __name__ == "__main__":
                     inputs.append(cli)                                          #Añadimos a la lista inputs
                     outputs.append(cli)                                         #Añadimos a la lista outputs
 
-                    clientes["peers"].append({"address" : str(cli_add)})
-
-                    data = str(json.dumps(clientes))
+                    data = str(json.dumps(cliServ))
                     cli.send(data.encode())
 
-                    print(clientes)
-
                 else:
+                    cliServ_addr = sck.getpeername()
                     dataRecv = sck.recv(1024)
+
                     if dataRecv:
-                        dataRecv = dataRecv.strip().decode('utf-8')
-                        print(dataRecv)
+                        dataRecv = str(dataRecv.strip().decode('utf-8'))
+                        
+                        addValido = re.compile(r"^\('"+ expIPv4 + "'," + expPort + "\)$")
+
+                        if addValido != None:
+                            cliServ["clientes"].append({"peerServ_addr" : str(dataRecv), "cliServ_addr": str(cliServ_addr)})
+
+                            print(cliServ)
+
+                        else:
+                            print(dataRecv)
 
                     else:
                         outputs.remove(sck)
                         inputs.remove(sck)
-                        cliCls = sck.getpeername()
                         sck.close()
 
                         n = 0
-                        for p in clientes["peers"]:
-                            if p["address"] == str(cliCls):
-                                clientes["peers"].pop(n)
+                        for p in cliServ["clientes"]:
+                            if p["cliServ_addr"] == str(cliServ_addr):
+                                cliServ["clientes"].pop(n)
                             n += 1
 
-                        print("-Cliente:", cliCls, "desconectado")
+                        print("-Cliente:", cliServ_addr, "desconectado")
 
 
             for sck in exceptional:                                             #Condiciones excepcionales
