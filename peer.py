@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import signal, queue, select, socket, json, sys, os                             #Funciones orientadas a conexión, sistema
+import signal, queue, select, socket, json, sys, os                             #Funciones orientadas a conexión, sistema, json y expresiones regulares
 from time import time                                                           #Cronometrar tiempos
 from time import sleep
 
@@ -10,7 +10,7 @@ END = "\033[0m"
 BAR = "\n———————————————————————————————\n"
 
 if __name__ == "__main__":
-    if len(sys.argv) != 3 :                                                     #Esta función compara los tiempos para
+    if len(sys.argv) != 3 :                                                     
         print(ERR + "ERR: Nº de argumentos no válidos" + END)
         sys.exit()
 
@@ -24,60 +24,59 @@ if __name__ == "__main__":
         sys.exit()
 
     name = ""
-    while len(name) <= 0:
+    while len(name) <= 0:                                                       #Solicitamos el nombre
         name = input("Nombre: ")
 
     #Creación del socket TCP servidor
     serv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    serv.connect(serv_addr)
+    serv.connect(serv_addr)                                                     #Establecemos conexión con el servidor
 
     #Creación del socket TCP escucha servPeer
     servPeer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    servPeer.setblocking(0) 
+    servPeer.setblocking(0)                                                     #Establecemos modo no bloqueo
     servPeer.bind(("",0))
-    servPeer.listen(10)
+    servPeer.listen(10)                                                         #El socket está a la escucha
 
-    servPeer_addr = servPeer.getsockname()
+    servPeer_addr = servPeer.getsockname()                                      #Obtenemos la dirección del servidor
 
     data = serv.recv(1024)
-    peers = json.loads(data.decode("utf-8"))
+    peers = json.loads(data.decode("utf-8"))                                    #Guardamos la información en un JSON
     serv.send(str(servPeer_addr).encode())
 
     #Conexión con peers
-
-    inputs = [sys.stdin, servPeer]
-    que = queue.Queue()
+    inputs = [sys.stdin, servPeer]                                              #Lista de servidores de entrada
+    que = queue.Queue()                                                         #Creamos una cola
 
     mssNext = str.encode("")
 
-    sckPeers = []
+    sckPeers = []                                                               #Lista de sockets servidor de los demás usuarios
 
-    for peer in peers["clientes"]:
+    for peer in peers["clientes"]:                                              
         print("Conectando con peer:", peer["peerServ_addr"])
         cliPeer = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         cliPeer.connect(eval(peer["peerServ_addr"]))
-        inputs.append(cliPeer)
-        sckPeers.append(cliPeer)
+        inputs.append(cliPeer)                                                  #Añadimos al final de la lista inputs
+        sckPeers.append(cliPeer)                                                #Añadimos al final de la lista de sockets servidor                                                 
 
     while True:
         try:
-            readable, writable, exceptional = select.select(inputs, [], [])
+            readable, writable, exceptional = select.select(inputs, [], [])     #Select coordina entre i/o
 
-            for sck in readable:
-                if sck == sys.stdin:
-                    mssIn = sys.stdin.readline()
+            for sck in readable:                                                #Sockets de entrada disponibles
+                if sck == sys.stdin:                                            #Si detecta el teclado
+                    mssIn = sys.stdin.readline()                                
                     mss = "->" + name + ": " + mssIn
-                    que.put(mss.encode())
+                    que.put(mss.encode())                                       #Añadimos el mensaje a la cola
                     for s in sckPeers:
                         s.send(mss.encode())
 
-                elif sck == servPeer:                                         
-                    cli, cli_add = servPeer.accept()                                #Aceptamos la conexión de un socket "readable"
-                    cli.setblocking(0)                                              #Establecemos modo no bloqueo
+                elif sck == servPeer:                                           #Un nuevo servidor "peer" desea conectarse                                       
+                    cli, cli_add = servPeer.accept()                            #Aceptamos la conexión de un socket "readable"
+                    cli.setblocking(0)                                          #Establecemos modo no bloqueo
                     print("-Cliente:", cli_add, "conectado")
 
-                    inputs.append(cli)                                              #Añadimos a la lista inputs
-                    sckPeers.append(cli)
+                    inputs.append(cli)                                          #Añadimos al final de la lista inputs
+                    sckPeers.append(cli)                                        #Añadimos al final de la lista de sockets servidor
 
                     peers["clientes"].append({"cliServ_addr": str(cli_add)})
 
@@ -89,20 +88,20 @@ if __name__ == "__main__":
                         print(dataRecv)
 
                     else:
-                        sckPeers.remove(sck)
-                        inputs.remove(sck)
+                        sckPeers.remove(sck)                                    #Eliminamos el socket de la lista de sckPeers
+                        inputs.remove(sck)                                      #Eliminamos el socket de la lista de inputs
 
                         cliClose = sck.getsockname()
-                        sck.close()
+                        sck.close()                                             #Cerramos el socket
 
                         n = 0
-                        for p in peers["clientes"]:
+                        for p in peers["clientes"]:                             #Eliminamos del JSON
                             if p["cliServ_addr"] == str(cliClose):
                                 peers["clientes"].pop(n)
                             n += 1
                         print("-Cliente:", cliClose, "desconectado")
 
-            for sck in exceptional:
+            for sck in exceptional:                                             #Condiciones excepcionales
                 if sck == servPeer:
                     servPeer.close()
 
