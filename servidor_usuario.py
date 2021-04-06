@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import signal, select, socket, json, sys, os, re                                #Funciones orientadas a conexión, sistema
+import signal, select, socket, json, sys, os, re                                #Funciones orientadas a conexión, sistema, json y expresiones regulares
 from time import time                                                           #Cronometrar tiempos
 from time import sleep
 
@@ -13,7 +13,7 @@ expIPv4 = "((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01
 expPort = "(6553[0-5]|655[0-2][0-9]|65[0-4][0-9]{2}|6[0-4][0-9]{3}|[0-5]?([0-9]){0,3}[0-9])"     #Expresión regular puerto
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2 :                                                     #Esta función compara los tiempos para
+    if len(sys.argv) != 2 :
         print(RED + "ERR: Nº de argumentos no válidos" + END)
         sys.exit()
 
@@ -29,7 +29,6 @@ if __name__ == "__main__":
     #Creación del socket servidor de direcciones peers
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setblocking(0)                                                         #Establecemos modo no bloqueo
-
 
     #Conexión socket
     sock.bind(serv_addr)
@@ -96,7 +95,7 @@ if __name__ == "__main__":
             for sck in exceptional:                                             #Condiciones excepcionales
                 inputs.remove(sck)                                              #Eliminamos el socket de la lista de inputs
                 outputs.remove(sck)                                             #Eliminamos el socket de la lista de outputs
-                sck.close()
+                sck.close()                                                     #Cerramos el socket
         
         except KeyboardInterrupt:
             print("\nCerrando conexión con clientes")
